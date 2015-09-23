@@ -1,0 +1,3 @@
+[submodule "ext/openjpeg"]
+	path = ext/openjpeg
+	url = git@github.com:uclouvain/openjpeg.git
