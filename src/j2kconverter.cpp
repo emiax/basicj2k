@@ -34,7 +34,7 @@ namespace {
     OPJ_SIZE_T writeFunction(void *buffer, OPJ_SIZE_T size, void *userData) {
         J2kConverter::MemoryStream* ms = reinterpret_cast<J2kConverter::MemoryStream*>(userData);
         if (ms->offset + size > ms->data.size()) {
-            ms->data.resize(ms->offset + size);
+            ms->data.resize(ms->offset + size, 0);
         }
         memcpy(ms->data.data() + ms->offset, buffer, size);
         return ms->offset += size;
@@ -75,11 +75,6 @@ namespace basicj2k {
 char* J2kConverter::encode(int16_t* data, unsigned int imageWidth, unsigned int imageHeight, size_t& outSize, float distoRatio) {
     opj_cparameters_t params;
     opj_image_cmptparm_t compParams;
-
-    opj_codec_t *codec;
-    opj_image_t *image;
-    opj_stream_t * stream;
-    
     
     opj_set_default_encoder_parameters(&params);
     params.tcp_numlayers = 1;
@@ -104,13 +99,13 @@ char* J2kConverter::encode(int16_t* data, unsigned int imageWidth, unsigned int 
     compParams.dx = 1;
     compParams.dy = 1;
     
-    codec = opj_create_compress(OPJ_CODEC_J2K);
+    opj_codec_t *codec = opj_create_compress(OPJ_CODEC_J2K);
 
     opj_set_info_handler(codec, infoCallback, nullptr);
     opj_set_warning_handler(codec, warningCallback, nullptr);
     opj_set_error_handler(codec, errorCallback, nullptr);
 
-    image = opj_image_create(1, &compParams, OPJ_CLRSPC_GRAY);
+    opj_image_t *image = opj_image_create(1, &compParams, OPJ_CLRSPC_GRAY);
     if (!image) {
         opj_destroy_codec(codec);
         return nullptr;
@@ -135,7 +130,7 @@ char* J2kConverter::encode(int16_t* data, unsigned int imageWidth, unsigned int 
     }
 
     MemoryStream* ms = new MemoryStream;
-    stream = createOpjMemoryStream(OPJ_FALSE, ms);
+    opj_stream_t *stream = createOpjMemoryStream(OPJ_FALSE, ms);
     if (!stream) {
         std::cout << "Could not set up stream" << std::endl;
         opj_destroy_codec(codec);
@@ -181,27 +176,27 @@ char* J2kConverter::encode(int16_t* data, unsigned int imageWidth, unsigned int 
 
 int16_t* J2kConverter::decode(char* inData, size_t inSize, unsigned int& imageWidth, unsigned int& imageHeight , int16_t* outData) {
 
-    opj_image_t *image;
-    opj_stream_t *stream;
-    opj_codec_t *codec;
     opj_dparameters_t core;
 
     MemoryStream* ms = new MemoryStream;
-    ms->data.resize(inSize);
+    ms->data.resize(inSize, 0);
     memcpy(ms->data.data(), inData, inSize);
 
-    stream = createOpjMemoryStream(OPJ_TRUE, ms);
+    opj_stream_t *stream = createOpjMemoryStream(OPJ_TRUE, ms);
     if (!stream) {
         std::cout << "Could not create in stream." << std::endl;
         delete ms;
         return nullptr;
     }
 
-    codec = opj_create_decompress(OPJ_CODEC_J2K);
+    opj_codec_t *codec = opj_create_decompress(OPJ_CODEC_J2K);
+    opj_image_t *image = nullptr;
     
     opj_set_info_handler(codec, infoCallback, nullptr);
     opj_set_warning_handler(codec, warningCallback, nullptr);
     opj_set_error_handler(codec, errorCallback, nullptr);
+
+    opj_set_default_decoder_parameters(&core);
 
     if ( !opj_setup_decoder(codec, &core) ){
         std::cout << "Could not set up decoder." << std::endl;
